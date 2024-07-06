@@ -1,0 +1,71 @@
+---
+- name: Enforce minimum Ansible version
+  ansible.builtin.assert:
+    that:
+      - ansible_version.full is version('2.14', '>=')
+    msg: "Minimum ansible-core version required is 2.14"
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Set hosts hostnames
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+    use: "{{ item.strategy }}"
+  when:
+    - item.test
+    - set_hostnames
+  loop:
+    - test: ansible_os_family == "RedHat"
+      strategy: systemd
+    - test: ansible_os_family == "Debian"
+      strategy: debian
+
+- name: Set /etc/hosts to reflect hostnames
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ hostvars[item].ansible_host }}\t{{ item }}"
+  loop: "{{ groups.all }}" 
+
+- name: Disable SWAP
+  ansible.builtin.shell: |
+    swapoff -a
+
+- name: Disable SWAP in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+    replace: '# \1'
+
+- name: Disable firewalld
+  ansible.builtin.systemd_service:
+    name: firewalld
+    enabled: false
+    state: stopped
+  when:
+    - ansible_os_family == "RedHat"
+    - ansible_facts.services['firewalld'] is defined
+
+- name: Disable nm-cloud-setup service if applicable
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - nm-cloud-setup.service
+    - nm-cloud-setup.timer
+  when:
+    - ansible_facts.services['nm-cloud-setup'] is defined
+    - ansible_facts.services['nm-cloud-setup'].state == 'running'
+
+- name: Run the equivalent of "apt-get update" as a separate step
+  ansible.builtin.apt:
+    update_cache: yes
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Install dependencies
+  ansible.builtin.package:
+    name:
+      - jq
+    state: present

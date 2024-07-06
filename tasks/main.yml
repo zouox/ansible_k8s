@@ -1,2 +1,84 @@
 ---
-# tasks file for zouox.ansible_k8s
+- name: tests
+  ansible.builtin.include_tasks:
+    file: debug.yml
+    apply:
+      tags: debug
+  tags: debug
+
+- name: Prepare role execution
+  ansible.builtin.include_tasks:
+    file: prepare.yml
+    apply:
+      tags:
+        - install
+        - prepare
+      any_errors_fatal: true
+  tags:
+    - install
+    - prepare
+
+- name: Install main k3s server
+  ansible.builtin.include_tasks:
+    file: install_main_server.yml
+    apply:
+      tags:
+        - install
+        - k3s
+        - main_server
+      any_errors_fatal: true
+  tags:
+    - install
+    - k3s
+    - main_server
+
+- name: Install other k3s servers
+  ansible.builtin.include_tasks:
+    file: install_other_servers.yml
+    apply:
+      tags:
+        - install
+        - k3s
+        - other_servers
+      any_errors_fatal: true
+  tags:
+    - install
+    - k3s
+    - other_servers
+  when: kubevip_install
+
+- name: Install Helm on servers
+  ansible.builtin.include_tasks:
+    file: install_helm.yml
+    apply:
+      tags:
+        - install
+        - k3s
+        - helm
+      any_errors_fatal: true
+  tags:
+    - install
+    - k3s
+    - helm
+  when: ('k3s_main_server' in group_names and helm_install) or
+        ('k3s_other_servers' in group_names and helm_install)
+
+- name: Install k3s agents
+  ansible.builtin.include_tasks:
+    file: install_agents.yml
+    apply:
+      tags:
+        - install
+        - k3s
+        - agents
+      any_errors_fatal: true
+  tags:
+    - install
+    - k3s
+    - agents
+  when: kubevip_install
+
+- name: Uninstall k3s
+  ansible.builtin.include_tasks: uninstall.yml
+  tags:
+    - uninstall
