@@ -1,10 +1,4 @@
 ---
-- name: Enforce minimum Ansible version
-  ansible.builtin.assert:
-    that:
-      - ansible_version.full is version('2.14', '>=')
-    msg: "Minimum ansible-core version required is 2.14"
-
 - name: Populate service facts
   ansible.builtin.service_facts:
 
@@ -27,11 +21,11 @@
     line: "{{ hostvars[item].ansible_host }}\t{{ item }}"
   loop: "{{ groups.all }}" 
 
-- name: Disable SWAP
+- name: Disable swap
   ansible.builtin.shell: |
     swapoff -a
 
-- name: Disable SWAP in fstab
+- name: Disable swap in fstab
   ansible.builtin.replace:
     path: /etc/fstab
     regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
@@ -58,14 +52,69 @@
     - ansible_facts.services['nm-cloud-setup'] is defined
     - ansible_facts.services['nm-cloud-setup'].state == 'running'
 
-- name: Run the equivalent of "apt-get update" as a separate step
+- name: Update repository cache
   ansible.builtin.apt:
     update_cache: yes
   when:
     - ansible_os_family == "Debian"
 
-- name: Install dependencies
+- name: Install dependencies for containerd
   ansible.builtin.package:
     name:
-      - jq
+      - ca-certificates
+      - curl
+    state: present
+
+- name: Create keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    owner: root
+    group: root
+    mode: '0755'
+    state: directory
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Get Docker repository GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Set read permissions on docker.asc
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: u+r,g+r,o+r
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Add Docker repository
+  block:
+    - name: Add docker repository (Debian)
+      ansible.builtin.apt_repository:
+        filename: docker-ce
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+    - name: Add docker repository (RHEL)
+      ansible.builtin.yum_repository:
+        name: docker-ce
+        description: Docker CE repository
+        baseurl: https://download.docker.com/linux/centos/docker-ce.repo
+      when:
+        - ansible_os_family == "RedHat"
+
+- name: Update repository cache
+  ansible.builtin.apt:
+    update_cache: yes
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Install containerd.io
+  ansible.builtin.package:
+    name: containerd.io
     state: present
