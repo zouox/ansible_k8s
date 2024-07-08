@@ -1,0 +1,48 @@
+- name: Initialize Kubernetes cluster
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      if [ ! -f /etc/kubernetes/admin.conf ]; then
+        kubeadm init --pod-network-cidr={{ pod_network_cidr }}
+      fi
+
+- name: Create kube config directory for root user
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+
+- name: Ensure cluster access to root user
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+
+- name: Get Tigera Calico Operator manifest
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+    dest: /tmp/tigera.yaml
+    mode: '0664'
+
+# shell kubectl create -f xxx
+- name: Apply Tigera Calico Operator manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/tigera.yaml
+
+- name: Get Calico manifest
+  ansible.builtin.get_url:
+    url: https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+    dest: /tmp/calico.yaml
+    mode: '0664'
+
+- name: Replace default Calico network CIDR
+  ansible.builtin.shell: sed -i 's@192.168.0.0/16@{{ pod_network_cidr }}@' /tmp/calico.yaml
+
+# shell kubectl create -f xxx
+- name: Apply Tigera Calico Operator manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/calico.yaml
+## Update CoreDNS conf if required
+
+## Install kube-vip if required

@@ -1,2 +1,5 @@
 ---
 set_hostnames: true
+kubernetes_version: v1.30
+pod_network_cidr: 10.10.0.0/16
+calico_version: v3.28.0

@@ -40,6 +40,20 @@
     - ansible_os_family == "RedHat"
     - ansible_facts.services['firewalld'] is defined
 
+- name: Add sysctls for kubelet
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      cat > /etc/sysctl.d/90-kubelet.conf << EOF
+      net.ipv4.ip_forward=1
+      vm.overcommit_memory=1
+      kernel.panic=10
+      kernel.panic_on_oops=1
+      EOF
+
+- name: Apply kubelet sysctls
+  ansible.builtin.shell: sysctl -p /etc/sysctl.d/90-kubelet.conf
+
 - name: Disable nm-cloud-setup service if applicable
   ansible.builtin.systemd_service:
     name: "{{ item }}"
@@ -50,7 +64,18 @@
     - nm-cloud-setup.timer
   when:
     - ansible_facts.services['nm-cloud-setup'] is defined
-    - ansible_facts.services['nm-cloud-setup'].state == 'running'
+
+- name: Disable NetworkManager service if applicable
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - nm-cloud-setup.service
+    - nm-cloud-setup.timer
+  when:
+    - ansible_facts.services['NetworkManager'] is defined
+
 
 - name: Update repository cache
   ansible.builtin.apt:
@@ -58,11 +83,12 @@
   when:
     - ansible_os_family == "Debian"
 
-- name: Install dependencies for containerd
+- name: Install dependencies
   ansible.builtin.package:
     name:
       - ca-certificates
       - curl
+      - iproute-tc
     state: present
 
 - name: Create keyrings directory
@@ -101,10 +127,29 @@
       when:
         - ansible_os_family == "Debian"
     - name: Add docker repository (RHEL)
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/centos/docker-ce.repo
+        dest: /etc/yum.repos.d/docker-ce.repo
+        mode: '644'
+      when:
+        - ansible_os_family == "RedHat"
+
+- name: Add Kubernetes repository
+  block:
+    - name: Add docker repository (Debian)
+      ansible.builtin.apt_repository:
+        filename: docker-ce
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        state: present
+      when:
+        - ansible_os_family == "Debian"
+    - name: Add k8s.io repository (RHEL)
       ansible.builtin.yum_repository:
-        name: docker-ce
-        description: Docker CE repository
-        baseurl: https://download.docker.com/linux/centos/docker-ce.repo
+        name: kubernetes
+        description: k8s.io repository
+        baseurl: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/
+        gpgcheck: true
+        gpgkey: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/repodata/repomd.xml.key
       when:
         - ansible_os_family == "RedHat"
 
@@ -118,3 +163,35 @@
   ansible.builtin.package:
     name: containerd.io
     state: present
+
+- name: Enable containerd CRI plugin
+  ansible.builtin.shell: |
+    if cat /etc/containerd/config.toml | grep 'cri'; then
+      sed -i 's/cri//' /etc/containerd/config.toml
+    fi
+
+- name: Enable and start containerd unit
+  ansible.builtin.service:
+    name: containerd
+    enabled: true
+    state: started
+
+- name: Install Kubernetes packages on all nodes
+  ansible.builtin.package:
+    name:
+      - kubeadm
+      - kubelet
+    state: present
+
+- name: Install Kubernetes packages on master nodes
+  ansible.builtin.package:
+    name: kubectl
+    state: present
+  when: ('k8s_main_master' in group_names) or
+        ('k8s_other_masters' in group_names) 
+
+- name: Enable and start kubelet unit
+  ansible.builtin.service:
+    name: kubelet
+    enabled: true
+    state: started
