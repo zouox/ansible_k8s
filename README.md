@@ -58,7 +58,8 @@ all:
 |---|---|---|---|
 |set_hostnames  |Automatically sets hostnames for target hosts, based on Ansible inventory name. |True |No  |
 |kubernetes_version  |Sets Kubernetes version. |v1.30 |No  |
-|pod_network_cidr  |Sets the pod network CIDR for the cluster|10.10.0.0/16 |No  |
+|pod_network_cidr  |Sets the pod network CIDR for the cluster|10.244.0.0/16 |No  |
+|kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico|flannel |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
 |helm_install |Install Helm after the cluster installation.  |True |No  |
 |path_to_sourcefile |Path to the file containing extra k8s install vars| /tmp/k8s-extras.  |No  |

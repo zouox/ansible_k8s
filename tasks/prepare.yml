@@ -40,12 +40,23 @@
     - ansible_os_family == "RedHat"
     - ansible_facts.services['firewalld'] is defined
 
+# Configure SELinux
+
+# modprobe overlay + br_netfilter
+
+# cat > /etc/modules-load.d/k8s.conf << EOF
+# overlay
+# br_netfilter
+# EOF
+
 - name: Add sysctls for kubelet
   ansible.builtin.shell:
     executable: /bin/bash
     cmd: |
       cat > /etc/sysctl.d/90-kubelet.conf << EOF
       net.ipv4.ip_forward=1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.bridge.bridge-nf-call-iptables = 1
       vm.overcommit_memory=1
       kernel.panic=10
       kernel.panic_on_oops=1
@@ -76,7 +87,6 @@
   when:
     - ansible_facts.services['NetworkManager'] is defined
 
-
 - name: Update repository cache
   ansible.builtin.apt:
     update_cache: yes
@@ -89,7 +99,12 @@
       - ca-certificates
       - curl
       - iproute-tc
+      - pip
     state: present
+
+- name: Install Kubernetes Python module
+  ansible.builtin.pip:
+    name: kubernetes
 
 - name: Create keyrings directory
   ansible.builtin.file:
@@ -164,17 +179,19 @@
     name: containerd.io
     state: present
 
-- name: Enable containerd CRI plugin
+# Create default config for containerd
+
+- name: Enable systemd Cgroup for containerd
   ansible.builtin.shell: |
     if cat /etc/containerd/config.toml | grep 'cri'; then
-      sed -i 's/cri//' /etc/containerd/config.toml
+      sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
     fi
 
 - name: Enable and start containerd unit
   ansible.builtin.service:
     name: containerd
     enabled: true
-    state: started
+    state: restarted
 
 - name: Install Kubernetes packages on all nodes
   ansible.builtin.package:
@@ -189,9 +206,3 @@
     state: present
   when: ('k8s_main_master' in group_names) or
         ('k8s_other_masters' in group_names) 
-
-- name: Enable and start kubelet unit
-  ansible.builtin.service:
-    name: kubelet
-    enabled: true
-    state: started

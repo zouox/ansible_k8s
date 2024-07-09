@@ -36,7 +36,7 @@
 
 - name: Install other k8s master
   ansible.builtin.include_tasks:
-    file: install_other_master.yml
+    file: install_other-master.yml
     apply:
       tags:
         - install

@@ -1,0 +1,15 @@
+---
+- name: Get Flannel CNI manifest
+  ansible.builtin.get_url:
+    url: https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+    dest: /tmp/kube-flannel.yml
+    mode: '0664'
+
+- name: Set custom pod network CIDR in flannel manifest
+  ansible.builtin.shell: sed -i 's@10.244.0.0/16@{{ pod_network_cidr }}@' /tmp/calico.yaml
+  when: pod_network_cidr is not '10.244.0.0/16'
+
+- name: Apply flannel manifest
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/kube-flannel.yml

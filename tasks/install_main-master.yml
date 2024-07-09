@@ -17,32 +17,10 @@
     dest: /root/.kube/config
     remote_src: true
 
-- name: Get Tigera Calico Operator manifest
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
-    dest: /tmp/tigera.yaml
-    mode: '0664'
+- name: Install CNI
+  ansible.builtin.include_tasks:
+    file: cni/{{ kubernetes_cni }}.yml
 
-# shell kubectl create -f xxx
-- name: Apply Tigera Calico Operator manifest
-  kubernetes.core.k8s:
-    state: present
-    src: /tmp/tigera.yaml
-
-- name: Get Calico manifest
-  ansible.builtin.get_url:
-    url: https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
-    dest: /tmp/calico.yaml
-    mode: '0664'
-
-- name: Replace default Calico network CIDR
-  ansible.builtin.shell: sed -i 's@192.168.0.0/16@{{ pod_network_cidr }}@' /tmp/calico.yaml
-
-# shell kubectl create -f xxx
-- name: Apply Tigera Calico Operator manifest
-  kubernetes.core.k8s:
-    state: present
-    src: /tmp/calico.yaml
 ## Update CoreDNS conf if required
 
 ## Install kube-vip if required
