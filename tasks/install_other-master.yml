@@ -1,8 +1,32 @@
+- name: Get certificate key from main control plane
+  ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs > /tmp/upload-certs
+  when: "'k8s_main_master' in group_names"
+
+- name: Extract key from output
+  ansible.builtin.shell: grep -i -E "^[A-Za-z0-9]" /tmp/upload-certs
+  register: cert_key
+  when: "'k8s_main_master' in group_names"
+
 - name: Get join command from main control plane
   ansible.builtin.shell: kubeadm token create --print-join-command
   register: join_command
   when: "'k8s_main_master' in group_names"
 
 - name: Join the cluster
-  ansible.builtin.shell: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --control-plane"
+  ansible.builtin.shell: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
   when: "'k8s_other_masters' in group_names"
+
+- name: Create kube config directory for root user
+  ansible.builtin.file:
+    path: /root/.kube
+    state: directory
+  when: "'k8s_other_masters' in group_names"
+
+- name: Ensure cluster access to root user
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+  when: "'k8s_other_masters' in group_names"
+
+## RM /tmp/upload-certs WHEN DONE!!!

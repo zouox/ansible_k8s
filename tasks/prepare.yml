@@ -40,30 +40,40 @@
     - ansible_os_family == "RedHat"
     - ansible_facts.services['firewalld'] is defined
 
-# Configure SELinux
+- name: Set SELinux in permissive mode
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  when: ansible_os_family == "RedHat"
 
-# modprobe overlay + br_netfilter
-
-# cat > /etc/modules-load.d/k8s.conf << EOF
-# overlay
-# br_netfilter
-# EOF
+- name: Activate overlay and br_netfilter kernel modules
+  community.general.modprobe:
+    name: "{{ item }}"
+    state: present
+    persistent: present
+  loop:
+    - overlay
+    - br_netfilter
 
 - name: Add sysctls for kubelet
-  ansible.builtin.shell:
-    executable: /bin/bash
-    cmd: |
-      cat > /etc/sysctl.d/90-kubelet.conf << EOF
-      net.ipv4.ip_forward=1
-      net.bridge.bridge-nf-call-ip6tables = 1
-      net.bridge.bridge-nf-call-iptables = 1
-      vm.overcommit_memory=1
-      kernel.panic=10
-      kernel.panic_on_oops=1
-      EOF
-
-- name: Apply kubelet sysctls
-  ansible.builtin.shell: sysctl -p /etc/sysctl.d/90-kubelet.conf
+  ansible.posix.sysctl:
+    name: "{{ item.sysctl }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop: 
+    - sysctl: net.ipv4.ip_forward
+      value: 1
+    - sysctl: net.bridge.bridge-nf-call-iptables
+      value: 1
+    - sysctl: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+    - sysctl: vm.overcommit_memory
+      value: 1
+    - sysctl: kernel.panic
+      value: 10
+    - sysctl: kernel.panic_on_oops
+      value: 1
 
 - name: Disable nm-cloud-setup service if applicable
   ansible.builtin.systemd_service:
@@ -179,11 +189,15 @@
     name: containerd.io
     state: present
 
-# Create default config for containerd
+- name: Create default config for containerd
+  ansible.builtin.shell: |
+    if cat /etc/containerd/config.toml | grep 'cri'; then
+      containerd config default > /etc/containerd/config.toml
+    fi
 
 - name: Enable systemd Cgroup for containerd
   ansible.builtin.shell: |
-    if cat /etc/containerd/config.toml | grep 'cri'; then
+    if cat /etc/containerd/config.toml | grep 'SystemdCgroup = false'; then
       sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
     fi
 
@@ -193,14 +207,14 @@
     enabled: true
     state: restarted
 
-- name: Install Kubernetes packages on all nodes
+- name: Install kubeadm and kubelet packages on all nodes
   ansible.builtin.package:
     name:
       - kubeadm
       - kubelet
     state: present
 
-- name: Install Kubernetes packages on master nodes
+- name: Install kubectl package on master nodes
   ansible.builtin.package:
     name: kubectl
     state: present

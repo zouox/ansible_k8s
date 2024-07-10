@@ -3,7 +3,7 @@
     executable: /bin/bash
     cmd: |
       if [ ! -f /etc/kubernetes/admin.conf ]; then
-        kubeadm init --pod-network-cidr={{ pod_network_cidr }}
+        kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ controlplane_endpoint | d(ansible_hostname) }}
       fi
 
 - name: Create kube config directory for root user
