@@ -45,6 +45,8 @@
 
 - name: Wait for kube-vip pod to be up again
   ansible.builtin.wait_for:
+    delay: 30
+    sleep: 10
     host: "{{ vip_address }}"
     port: 6443
   when: kubevip_install
