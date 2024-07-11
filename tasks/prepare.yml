@@ -86,17 +86,6 @@
   when:
     - ansible_facts.services['nm-cloud-setup'] is defined
 
-- name: Disable NetworkManager service if applicable
-  ansible.builtin.systemd_service:
-    name: "{{ item }}"
-    enabled: false
-    state: stopped
-  loop:
-    - nm-cloud-setup.service
-    - nm-cloud-setup.timer
-  when:
-    - ansible_facts.services['NetworkManager'] is defined
-
 - name: Update repository cache
   ansible.builtin.apt:
     update_cache: yes
@@ -110,6 +99,7 @@
       - curl
       - iproute-tc
       - pip
+      - jq
     state: present
 
 - name: Install Kubernetes Python module
@@ -220,3 +210,8 @@
     state: present
   when: ('k8s_main_master' in group_names) or
         ('k8s_other_masters' in group_names) 
+
+- name: Enable kubelet unit
+  ansible.builtin.service:
+    name: kubelet
+    enabled: true

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+shopt -s expand_aliases
+
+alias kube-vip="/bin/ctr image pull ghcr.io/kube-vip/kube-vip:{{ kubevip_version.stdout }}; \
+    /bin/ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kubevip_version.stdout }} vip /kube-vip"
+
+kube-vip manifest pod \
+    --interface {{ vip_interface }} \
+    --address {{ vip_address }} \
+    --controlplane \
+    --services \
+    --arp \
+    --leaderElection | tee /etc/kubernetes/manifests/kube-vip.yaml
