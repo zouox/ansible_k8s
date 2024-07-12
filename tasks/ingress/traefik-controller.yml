@@ -1,0 +1,16 @@
+---
+- name: Add Traefik Helm repository
+  kubernetes.core.helm_repository:
+    name: traefik
+    repo_url: https://traefik.github.io/charts
+
+- name: Install Traefik
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    name: traefik
+    chart_ref: traefik/traefik
+    release_namespace: kube-system
+    values:
+      service:
+        spec:
+          loadBalancerIP: "{{ vip_address }}"

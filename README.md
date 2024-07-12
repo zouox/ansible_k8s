@@ -62,7 +62,7 @@ all:
 |kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico|flannel |No  |
 |controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address.|ansible_hostname |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
-|helm_install |Install Helm after the cluster installation.  |True |No  |
+|kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx |traefik |No  |
 |path_to_sourcefile |Path to the file containing extra k8s install vars| /tmp/k8s-extras.  |No  |
 |path_to_k8s_script |Path where the k8s install script will be downloaded to.  |/tmp/install-k8s.sh  |No |
 |path_to_manifests |Path to the directory the templated manifests will be created, **without trailing slash**. |/var/lib/rancher/k8s/server/manifests  |No |

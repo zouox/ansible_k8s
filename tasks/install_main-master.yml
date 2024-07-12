@@ -1,3 +1,4 @@
+---
 - name: Get latest kube-vip version
   ansible.builtin.shell: curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name"
   register: kubevip_version
@@ -55,4 +56,6 @@
   ansible.builtin.include_tasks:
     file: cni/{{ kubernetes_cni }}.yml
 
-## Update CoreDNS conf if required
+- name: Install ingress controller
+  ansible.builtin.include_tasks:
+    file: ingress/{{ kubernetes_ingress }}-controller.yml
