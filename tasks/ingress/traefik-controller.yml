@@ -1,6 +1,7 @@
 ---
 - name: Add Traefik Helm repository
   kubernetes.core.helm_repository:
+    binary_path: /usr/local/bin/helm
     name: traefik
     repo_url: https://traefik.github.io/charts
 
