@@ -21,13 +21,16 @@
   ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
   when: kubevip_install
 
+- name: Check if node has been initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
 - name: Initialize Kubernetes cluster
   ansible.builtin.shell:
     executable: /bin/bash
-    cmd: |
-      if [ ! -f /etc/kubernetes/admin.conf ]; then
-        kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ vip_address | d(ansible_hostname) }}
-      fi
+    cmd: kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ vip_address | d(ansible_hostname) }}
+  when: not kubelet_conf.stat.exists
 
 - name: Create kube config directory for root user
   ansible.builtin.file:

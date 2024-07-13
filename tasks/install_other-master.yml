@@ -58,9 +58,18 @@
   register: join_command
   when: "'k8s_main_master' in group_names"
 
+- name: Check if node has been initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
 - name: Join the cluster
-  ansible.builtin.shell: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
-  when: "'k8s_other_masters' in group_names"
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
+  when:
+    - "'k8s_other_masters' in group_names"
+    - not kubelet_conf.stat.exists
 
 - name: Create kube config directory for root user
   ansible.builtin.file:
