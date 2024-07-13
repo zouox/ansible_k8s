@@ -168,6 +168,10 @@
         baseurl: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/
         gpgcheck: true
         gpgkey: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/repodata/repomd.xml.key
+        exclude:
+          - kubeadm
+          - kubelet
+          - kubectl
       when:
         - ansible_os_family == "RedHat"
 
