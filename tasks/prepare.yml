@@ -168,10 +168,6 @@
         baseurl: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/
         gpgcheck: true
         gpgkey: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/repodata/repomd.xml.key
-        exclude:
-          - kubeadm
-          - kubelet
-          - kubectl
       when:
         - ansible_os_family == "RedHat"
 
@@ -227,3 +223,9 @@
   ansible.builtin.service:
     name: kubelet
     enabled: true
+
+- name: Exclude Kubernetes components from updates
+  ansible.builtin.lineinfile:
+    path: /etc/yum.repos.d/kubernetes.repo
+    line: exclude = kubeadm kubelet kubectl
+  when: ansible_os_family == "RedHat"
