@@ -1,10 +1,36 @@
+---
+- name: Get latest kube-vip version
+  ansible.builtin.shell: curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name"
+  register: kubevip_version
+  when: kubevip_install
+
+- name: Import kube-vip manifest script template
+  ansible.builtin.template:
+    src: templates/kubevip-manifest.sh.j2
+    dest: /tmp/kubevip-manifest.sh
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0740'
+  when: kubevip_install
+
+- name: Create kube-vip manifest
+  ansible.builtin.shell: /tmp/kubevip-manifest.sh
+  when: kubevip_install
+
+- name: "[BUG FIX] Give kubevip pod super-admin perms to initiate"
+  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  when: kubevip_install
+
+- name: Check if node has been initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
 - name: Initialize Kubernetes cluster
   ansible.builtin.shell:
     executable: /bin/bash
-    cmd: |
-      if [ ! -f /etc/kubernetes/admin.conf ]; then
-        kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ controlplane_endpoint | d(ansible_hostname) }}
-      fi
+    cmd: kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ vip_address | d(ansible_hostname) }}
+  when: not kubelet_conf.stat.exists
 
 - name: Create kube config directory for root user
   ansible.builtin.file:
@@ -17,10 +43,22 @@
     dest: /root/.kube/config
     remote_src: true
 
+- name: "[BUG FIX] Revert giving kubevip pod super-admin perms to initiate"
+  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/super-admin.conf#path: /etc/kubernetes/admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  when: kubevip_install
+
+- name: Wait for kube-vip pod to be up again
+  ansible.builtin.wait_for:
+    delay: 30
+    sleep: 10
+    host: "{{ vip_address }}"
+    port: 6443
+  when: kubevip_install
+
 - name: Install CNI
   ansible.builtin.include_tasks:
     file: cni/{{ kubernetes_cni }}.yml
 
-## Update CoreDNS conf if required
-
-## Install kube-vip if required
+- name: Install ingress controller
+  ansible.builtin.include_tasks:
+    file: ingress/{{ kubernetes_ingress }}-controller.yml

@@ -1,0 +1,17 @@
+---
+- name: Add Nginx Ingress Controller Helm repository
+  kubernetes.core.helm_repository:
+    binary_path: /usr/local/bin/helm
+    name: ingress-nginx
+    repo_url: https://kubernetes.github.io/ingress-nginx
+
+- name: Install Nginx Ingress Controller
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    name: ingress-nginx
+    chart_ref: ingress-nginx/ingress-nginx
+    release_namespace: kube-system
+    values:
+      controller:
+        service:
+          loadBalancerIP: "{{ vip_address }}"

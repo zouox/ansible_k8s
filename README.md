@@ -60,41 +60,24 @@ all:
 |kubernetes_version  |Sets Kubernetes version. |v1.30 |No  |
 |pod_network_cidr  |Sets the pod network CIDR for the cluster|10.244.0.0/16 |No  |
 |kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico|flannel |No  |
+|controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address.|ansible_hostname |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
-|helm_install |Install Helm after the cluster installation.  |True |No  |
+|kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx |traefik |No  |
 |path_to_sourcefile |Path to the file containing extra k8s install vars| /tmp/k8s-extras.  |No  |
 |path_to_k8s_script |Path where the k8s install script will be downloaded to.  |/tmp/install-k8s.sh  |No |
 |path_to_manifests |Path to the directory the templated manifests will be created, **without trailing slash**. |/var/lib/rancher/k8s/server/manifests  |No |
 |vip_address  |The IP address kube-vip will advertise. |None |Yes, if *kubevip_install* var is set to **true** |
 |vip_interface  |The interface kube-vip will use to advertise the virtual IP. |ansible_facts.default_ipv4.interface  |No |
-|k8s_install_env_vars |Dictionnary of extra arguments to pass to k8s install script. |See explaination below.  |No |
-
-### k8s Extra args
-
-When using this role, you can set k8s installation environment variables in a dictionnary inside your Ansible variables.
-
-The only exception is **INSTALL_k8s_EXEC**, as this env var is already set by the role when needed.
-
-Here is an example of how to set up this dictionnary :
-
-```yaml
-k8s_install_env_vars:
-  INSTALL_k8s_NAME: my-k8s
-  INSTALL_k8s_BIN_DIR: /usr/bin
-```
-
-For a full list of these environment variables, see <https://docs.k8s.io/reference/env-variables>.
 
 ### Ansible tags
 
 |Name |Description  |
 |---|---|
-|debug  |debug  |
 |install  |Runs every tasks. Use this tag for a full installation |
 |k8s  |Runs every k8s related tasks (such as joining members to cluster)  |
-|main_server  |Runs every k8s tasks relatives to the installation of the first control plane node  |
-|other servers  |Runs every k8s tasks relatives to the installation of the supplementary control plane nodes |
-|agents |Runs every k8s tasks relatives to the installation of the worker nodes |
+|main_master  |Runs every k8s tasks relatives to the installation of the first control plane node  |
+|other_master  |Runs every k8s tasks relatives to the installation of the supplementary control plane nodes |
+|worker |Runs every k8s tasks relatives to the installation of the worker nodes |
 |helm |Runs every tasks to install Helm on the control plane nodes  |
 |uninstall  |Runs the uninstall procedure (WIP) |
 

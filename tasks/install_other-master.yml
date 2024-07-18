@@ -1,3 +1,49 @@
+---
+- name: Get latest kube-vip version
+  ansible.builtin.shell: curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name"
+  register: kubevip_version
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: Import kube-vip manifest script template
+  ansible.builtin.template:
+    src: templates/kubevip-manifest.sh.j2
+    dest: /tmp/kubevip-manifest.sh
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0740'
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: Create kube-vip manifest
+  ansible.builtin.shell: /tmp/kubevip-manifest.sh
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: "[BUG FIX] Give kubevip pod super-admin perms to initiate"
+  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: "[BUG FIX] Cat super-admin.conf in var"
+  ansible.builtin.shell: cat /etc/kubernetes/super-admin.conf
+  register: super_admin
+  delegate_to: "{{ hostvars[groups['k8s_main_master'][0]]['ansible_facts']['hostname'] }}"
+
+- name: "[BUG FIX] Copy super-admin.conf from main control plane"
+  ansible.builtin.blockinfile:
+    create: true
+    path: /etc/kubernetes/super-admin.conf
+    block: |
+      {{ super_admin.stdout }}
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
 - name: Get certificate key from main control plane
   ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs > /tmp/upload-certs
   when: "'k8s_main_master' in group_names"
@@ -12,9 +58,18 @@
   register: join_command
   when: "'k8s_main_master' in group_names"
 
+- name: Check if node has been initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
 - name: Join the cluster
-  ansible.builtin.shell: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
-  when: "'k8s_other_masters' in group_names"
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
+  when:
+    - "'k8s_other_masters' in group_names"
+    - not kubelet_conf.stat.exists
 
 - name: Create kube config directory for root user
   ansible.builtin.file:
@@ -29,4 +84,22 @@
     remote_src: true
   when: "'k8s_other_masters' in group_names"
 
-## RM /tmp/upload-certs WHEN DONE!!!
+- name: "[BUG FIX] Revert giving kubevip pod super-admin perms to initiate"
+  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/super-admin.conf#path: /etc/kubernetes/admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: Wait for kube-vip pod to be up again
+  ansible.builtin.wait_for:
+    host: "{{ vip_address }}"
+    port: 6443
+  when:
+    - kubevip_install
+    - "'k8s_other_masters' in group_names"
+
+- name: Remove temporary cert-key file
+  ansible.builtin.file:
+    path: /tmp/upload-certs
+    state: absent
+  when: "'k8s_main_master' in group_names"
