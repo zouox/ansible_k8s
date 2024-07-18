@@ -1,3 +1,4 @@
+---
 - name: Get join command from main control plane
   ansible.builtin.shell: kubeadm token create --print-join-command
   register: join_command
