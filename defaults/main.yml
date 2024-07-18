@@ -6,6 +6,5 @@ calico_version: v3.28.0
 kubernetes_cni: flannel
 kubernetes_ingress: traefik
 kubevip_install: true
-vip_address: 10.10.10.10
 vip_interface: "{{ ansible_facts.default_ipv4.interface }}"
 
