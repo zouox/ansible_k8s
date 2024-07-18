@@ -5,7 +5,7 @@ Maintainers: [zouox](https://gitlab.com/zouox), [ipefix ledruide](https://gitlab
 Supported distributions:
 
 - Debian 11
-- RHEL Family 7+ (CentOS, Almalinux, ...)
+- RHEL Family 8+ (Almalinux, Rocky Linux, ...)
 
 Supported architecture:
 
