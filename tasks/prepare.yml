@@ -108,13 +108,36 @@
     name:
       - ca-certificates
       - curl
-      - iproute-tc
       - pip
     state: present
+
+- name: Install pipx
+  ansible.builtin.package:
+    name: pipx
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install iproute-tc
+  ansible.builtin.package:
+    name: iproute-tc
+    state: present
+  when: ansible_os_family == "RedHat"
+
+- name: Install iproute2
+  ansible.builtin.package:
+    name: iproute2
+    state: present
+  when: ansible_os_family == "Debian"
 
 - name: Install Kubernetes Python module
   ansible.builtin.pip:
     name: kubernetes
+  when: ansible_os_family == "RedHat"
+  
+# - name: Install Kubernetes Python module
+#   community.general.pipx:
+#     name: kubernetes
+#   when: ansible_os_family == "Debian"
 
 - name: Create keyrings directory
   ansible.builtin.file:
@@ -159,12 +182,24 @@
       when:
         - ansible_os_family == "RedHat"
 
+- name: Check if Kubernetes repository GPG key exists
+  stat:
+    path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  register: stat_result
+  when: ansible_os_family == "Debian"
+
+- name: Get Kubernetes repository GPG key
+  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  when:
+    - ansible_os_family == "Debian"
+    - not stat_result.stat.exists
+
 - name: Add Kubernetes repository
   block:
-    - name: Add docker repository (Debian)
+    - name: Add k8s.io repository (Debian)
       ansible.builtin.apt_repository:
-        filename: docker-ce
-        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+        filename: kubernetes
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /"
         state: present
       when:
         - ansible_os_family == "Debian"
@@ -220,3 +255,22 @@
     state: present
   when: ('k8s_main_master' in group_names) or
         ('k8s_other_masters' in group_names) 
+
+- name: Prevent kubeadm and kubelet from being upgraded
+  ansible.builtin.shell: |
+      sudo apt-mark hold kubeadm
+      sudo apt-mark hold kubelet
+  when: ansible_os_family == "Debian"
+
+- name: Prevent kubectl from being upgraded
+  ansible.builtin.shell: |
+      sudo apt-mark hold kubectl
+  when:
+  - ansible_os_family == "Debian"
+  - ('k8s_main_master' in group_names) or
+        ('k8s_other_masters' in group_names) 
+
+- name: Enable kubelet unit
+  ansible.builtin.service:
+    name: kubelet
+    enabled: true
