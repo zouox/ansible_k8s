@@ -1,4 +1,12 @@
 ---
+- name: Check if vip_address is set
+  ansible.builtin.assert:
+    that:
+      - vip_address is defined
+    fail_msg: "vip_address variable is not defined"
+    quiet: true
+  when: kubevip_install
+
 - name: Populate service facts
   ansible.builtin.service_facts:
 
@@ -97,18 +105,12 @@
     name:
       - ca-certificates
       - curl
-      - pip
+      - python3-pip
       - jq
       - git
       - openssl
       - gpg
     state: present
-
-- name: Install pipx
-  ansible.builtin.package:
-    name: pipx
-    state: present
-  when: ansible_os_family == "Debian"
 
 - name: Install iproute-tc
   ansible.builtin.package:
@@ -127,10 +129,11 @@
     name: kubernetes
   when: ansible_os_family == "RedHat"
   
-# - name: Install Kubernetes Python module
-#   community.general.pipx:
-#     name: kubernetes
-#   when: ansible_os_family == "Debian"
+- name: Install Kubernetes Python module system-wide
+  ansible.builtin.package:
+    name: python3-kubernetes
+    state: present
+  when: ansible_os_family == "Debian"
 
 - name: Create keyrings directory
   ansible.builtin.file:
