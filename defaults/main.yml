@@ -4,3 +4,6 @@ kubernetes_version: v1.30
 pod_network_cidr: 10.244.0.0/16
 calico_version: v3.28.0
 kubernetes_cni: flannel
+kubevip_install: true
+vip_address: 10.10.10.10
+vip_interface: "{{ ansible_facts.default_ipv4.interface }}"
