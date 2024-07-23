@@ -63,3 +63,7 @@
 - name: Install ingress controller
   ansible.builtin.include_tasks:
     file: ingress/{{ kubernetes_ingress }}-controller.yml
+
+- name: Install storage class
+  ansible.builtin.include_tasks:
+    file: storage/{{ kubernetes_storageclass }}-class.yml
