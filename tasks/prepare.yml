@@ -124,6 +124,14 @@
     state: present
   when: ansible_os_family == "Debian"
 
+- name: Install nfs-common
+  ansible.builtin.package:
+    name: nfs-common
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - kubernetes_storageclass == "nfs"
+
 - name: Install Kubernetes Python module
   ansible.builtin.pip:
     name: kubernetes
