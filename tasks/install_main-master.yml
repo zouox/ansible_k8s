@@ -41,6 +41,7 @@
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
+    mode: 0600
     remote_src: true
 
 - name: "[BUG FIX] Revert giving kubevip pod super-admin perms to initiate"

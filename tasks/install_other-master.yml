@@ -38,6 +38,7 @@
   ansible.builtin.blockinfile:
     create: true
     path: /etc/kubernetes/super-admin.conf
+    mode: 0600
     block: |
       {{ super_admin.stdout }}
   when:
@@ -81,6 +82,7 @@
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
+    mode: 0600
     remote_src: true
   when: "'k8s_other_masters' in group_names"
 
