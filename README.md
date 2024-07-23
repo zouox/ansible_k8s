@@ -63,6 +63,9 @@ all:
 |controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address.|ansible_hostname |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
 |kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx |traefik |No  |
+|kubernetes_storageclass |Sets the installed Storage Class. Options are: local, nfs |local |No  |
+|nfs_server_address  |The IP address of the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
+|nfs_server_path  |The path on the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
 |path_to_sourcefile |Path to the file containing extra k8s install vars| /tmp/k8s-extras.  |No  |
 |path_to_k8s_script |Path where the k8s install script will be downloaded to.  |/tmp/install-k8s.sh  |No |
 |path_to_manifests |Path to the directory the templated manifests will be created, **without trailing slash**. |/var/lib/rancher/k8s/server/manifests  |No |
