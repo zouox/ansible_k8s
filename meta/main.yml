@@ -11,7 +11,3 @@ galaxy_info:
   galaxy_tags:
     - kubernetes
     - kubeadm
-
-dependencies:
-  - kubernetes.core
-  - community.general
