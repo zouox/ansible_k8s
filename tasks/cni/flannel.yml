@@ -6,8 +6,10 @@
     mode: '0664'
 
 - name: Set custom pod network CIDR in flannel manifest
-  ansible.builtin.shell: sed -i 's@10.244.0.0/16@{{ pod_network_cidr }}@' /tmp/kube-flannel.yml
-  when: pod_network_cidr == '10.244.0.0/16'
+  ansible.builtin.replace:
+    path: /tmp/kube-flannel.yml
+    regexp: '10.244.0.0/16'
+    replace: '{{ pod_network_cidr }}'
 
 - name: Apply flannel manifest
   kubernetes.core.k8s:

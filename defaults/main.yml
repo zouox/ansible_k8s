@@ -8,4 +8,3 @@ kubernetes_ingress: traefik
 kubevip_install: true
 kubernetes_storageclass: local
 vip_interface: "{{ ansible_facts.default_ipv4.interface }}"
-

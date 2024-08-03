@@ -1,10 +1,16 @@
 ---
-- name: Get latest kube-vip version
-  ansible.builtin.shell: curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name"
-  register: kubevip_version
-  when:
-    - kubevip_install
-    - "'k8s_other_masters' in group_names"
+- name: Fetch kube-vip releases from GitHub API
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/kube-vip/kube-vip/releases
+  register: github_response
+  when: kubevip_install
+  changed_when: false
+
+- name: Parse the latest kube-vip version
+  ansible.builtin.set_fact:
+    kubevip_version: "{{ github_response.json[0].name }}"
+  when: kubevip_install
+  changed_when: false
 
 - name: Import kube-vip manifest script template
   ansible.builtin.template:
@@ -18,27 +24,33 @@
     - "'k8s_other_masters' in group_names"
 
 - name: Create kube-vip manifest
-  ansible.builtin.shell: /tmp/kubevip-manifest.sh
+  ansible.builtin.command: /tmp/kubevip-manifest.sh
+  register: create_output
   when:
     - kubevip_install
     - "'k8s_other_masters' in group_names"
+  changed_when: create_output.rc != 0
 
 - name: "[BUG FIX] Give kubevip pod super-admin perms to initiate"
-  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: /etc/kubernetes/admin.conf'
+    replace: 'path: /etc/kubernetes/super-admin.conf'
   when:
     - kubevip_install
     - "'k8s_other_masters' in group_names"
 
 - name: "[BUG FIX] Cat super-admin.conf in var"
-  ansible.builtin.shell: cat /etc/kubernetes/super-admin.conf
+  ansible.builtin.command: cat /etc/kubernetes/super-admin.conf
   register: super_admin
   delegate_to: "{{ hostvars[groups['k8s_main_master'][0]]['ansible_facts']['hostname'] }}"
+  changed_when: false
 
 - name: "[BUG FIX] Copy super-admin.conf from main control plane"
   ansible.builtin.blockinfile:
     create: true
     path: /etc/kubernetes/super-admin.conf
-    mode: 0600
+    mode: '600'
     block: |
       {{ super_admin.stdout }}
   when:
@@ -48,16 +60,19 @@
 - name: Get certificate key from main control plane
   ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs > /tmp/upload-certs
   when: "'k8s_main_master' in group_names"
+  changed_when: false
 
 - name: Extract key from output
   ansible.builtin.shell: grep -i -E "^[A-Za-z0-9]" /tmp/upload-certs
   register: cert_key
   when: "'k8s_main_master' in group_names"
+  changed_when: false
 
 - name: Get join command from main control plane
-  ansible.builtin.shell: kubeadm token create --print-join-command
+  ansible.builtin.command: kubeadm token create --print-join-command
   register: join_command
   when: "'k8s_main_master' in group_names"
+  changed_when: false
 
 - name: Check if node has been initialized
   ansible.builtin.stat:
@@ -68,26 +83,32 @@
   ansible.builtin.shell:
     executable: /bin/bash
     cmd: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }} --certificate-key {{ hostvars[groups['k8s_main_master'][0]]['cert_key']['stdout'] }} --control-plane"
+  register: join_output
   when:
     - "'k8s_other_masters' in group_names"
     - not kubelet_conf.stat.exists
+  changed_when: join_output.rc != 0
 
 - name: Create kube config directory for root user
   ansible.builtin.file:
     path: /root/.kube
     state: directory
+    mode: '600'
   when: "'k8s_other_masters' in group_names"
 
 - name: Ensure cluster access to root user
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
-    mode: 0600
+    mode: '600'
     remote_src: true
   when: "'k8s_other_masters' in group_names"
 
 - name: "[BUG FIX] Revert giving kubevip pod super-admin perms to initiate"
-  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/super-admin.conf#path: /etc/kubernetes/admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: /etc/kubernetes/super-admin.conf'
+    replace: 'path: /etc/kubernetes/admin.conf'
   when:
     - kubevip_install
     - "'k8s_other_masters' in group_names"

@@ -2,8 +2,8 @@
 
 shopt -s expand_aliases
 
-alias kube-vip="/bin/ctr image pull ghcr.io/kube-vip/kube-vip:{{ kubevip_version.stdout }}; \
-    /bin/ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kubevip_version.stdout }} vip /kube-vip"
+alias kube-vip="/bin/ctr image pull ghcr.io/kube-vip/kube-vip:{{ kubevip_version }}; \
+    /bin/ctr run --rm --net-host ghcr.io/kube-vip/kube-vip:{{ kubevip_version }} vip /kube-vip"
 
 kube-vip manifest pod \
     --interface {{ vip_interface }} \

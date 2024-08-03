@@ -1,4 +1,15 @@
 ---
+- name: Debug
+  ansible.builtin.include_tasks:
+    file: debug.yml
+    apply:
+      tags:
+        - debug
+      any_errors_fatal: true
+  tags:
+    - debug
+  when: "'k8s_main_master' in group_names"
+
 - name: Prepare role execution
   ansible.builtin.include_tasks:
     file: prepare.yml

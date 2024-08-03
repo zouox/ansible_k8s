@@ -1,8 +1,9 @@
 ---
 - name: Get join command from main control plane
-  ansible.builtin.shell: kubeadm token create --print-join-command
+  ansible.builtin.command: kubeadm token create --print-join-command
   register: join_command
   when: "'k8s_main_master' in group_names"
+  changed_when: false
 
 - name: Check if node has been initialized
   ansible.builtin.stat:
@@ -13,6 +14,8 @@
   ansible.builtin.shell:
     executable: /bin/bash
     cmd: "{{ hostvars[groups['k8s_main_master'][0]]['join_command']['stdout'] }}"
-  when: 
+  register: join_output
+  when:
     - "'k8s_workers' in group_names"
     - not kubelet_conf.stat.exists
+  changed_when: join_output.rc != 0
