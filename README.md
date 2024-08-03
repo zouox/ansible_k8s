@@ -4,18 +4,20 @@ Maintainers: [zouox](https://gitlab.com/zouox), [ipefix ledruide](https://gitlab
 
 Supported distributions:
 
-- Debian 11
+- Debian 12
 - RHEL Family 8+ (Almalinux, Rocky Linux, ...)
 
 Supported architecture:
 
 - x64
 
+This role automates the setup of Kubernetes with integration of essential components such as an ingress controller (Traefik or Nginx), a storage class (local or NFS), and a Virtual IP (kube-vip) for high availability and load balancing.
+
+> ⚠️ All issues must be created on the [project main repository](https://gitlab.com/zouox-projects/ansible/zouox.ansible_k8s).
+
 ## Requirements
 
-All managed nodes in inventory must have:
-
-- Root access (or a user that can sudo)
+- Root access (or a user that can sudo) on all managed nodes in inventory
 
 - The kubernetes.core modules collection must be installed on the Ansible controller :
 
