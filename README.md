@@ -63,12 +63,12 @@ all:
 |set_hostnames  |Automatically sets hostnames for target hosts, based on Ansible inventory name. |True |No  |
 |kubernetes_version  |Sets Kubernetes version. |v1.30 |No  |
 |pod_network_cidr  |Sets the pod network CIDR for the cluster|10.244.0.0/16 |No  |
-|kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico|flannel |No  |
+|kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico, false |flannel |No  |
 |calico_version  |Sets the Calico version to download. |v3.28.0 |No |
 |controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address. |ansible_hostname |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
-|kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx |traefik |No  |
-|kubernetes_storageclass |Sets the installed Storage Class. Options are: local, nfs |local |No  |
+|kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx, false |traefik |No  |
+|kubernetes_storageclass |Sets the installed Storage Class. Options are: local, nfs, false |local |No  |
 |nfs_server_address  |The IP address of the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
 |nfs_server_path  |The path on the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
 |vip_address  |The IP address kube-vip will advertise. |None |Yes, if *kubevip_install* var is set to **true** |
