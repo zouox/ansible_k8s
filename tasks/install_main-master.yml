@@ -26,6 +26,12 @@
     path: /etc/kubernetes/kubelet.conf
   register: kubelet_conf
 
+- name: Pull Kubernetes images
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: kubeadm config images pull
+  when: not kubelet_conf.stat.exists
+
 - name: Initialize Kubernetes cluster
   ansible.builtin.shell:
     executable: /bin/bash

@@ -42,22 +42,6 @@
   when: ('k8s_main_master' in group_names) or
         ('k8s_other_masters' in group_names)
 
-# - name: Install Helm on servers
-#   ansible.builtin.include_tasks:
-#     file: install_helm.yml
-#     apply:
-#       tags:
-#         - install
-#         - k8s
-#         - helm
-#       any_errors_fatal: true
-#   tags:
-#     - install
-#     - k8s
-#     - helm
-#   when: ('k8s_main_server' in group_names and helm_install) or
-#         ('k8s_other_servers' in group_names and helm_install)
-
 - name: Install k8s workers
   ansible.builtin.include_tasks:
     file: install_worker.yml
@@ -73,8 +57,3 @@
     - worker
   when: ('k8s_main_master' in group_names) or
         ('k8s_workers' in group_names)
-
-# - name: Uninstall k8s
-#   ansible.builtin.include_tasks: uninstall.yml
-#   tags:
-#     - uninstall

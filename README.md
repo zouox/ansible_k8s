@@ -15,14 +15,16 @@ Supported architecture:
 
 All managed nodes in inventory must have:
 
-- Root access (or a user with equivalent permissions)
+- Root access (or a user that can sudo)
 
-The kubernetes.core modules collection must be installed on the Ansible controller :
+- The kubernetes.core modules collection must be installed on the Ansible controller :
+
 ```bash
 ansible-galaxy collection install kubernetes.core
 ```
 
-The community.general modules collection must be installed on the Ansible controller :
+- The community.general modules collection must be installed on the Ansible controller :
+
 ```bash
 ansible-galaxy collection install community.general
 ```
@@ -60,15 +62,13 @@ all:
 |kubernetes_version  |Sets Kubernetes version. |v1.30 |No  |
 |pod_network_cidr  |Sets the pod network CIDR for the cluster|10.244.0.0/16 |No  |
 |kubernetes_cni  |Sets the installed CNI. Options are: flannel, calico|flannel |No  |
-|controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address.|ansible_hostname |No  |
+|calico_version  |Sets the Calico version to download. |v3.28.0 |No |
+|controlplane_endpoint  |Sets the control plane endpoint. Can be a domain or an IP address. |ansible_hostname |No  |
 |kubevip_install |Install kube-vip on the cluser. Implies HA cluster installation. Set to **False** for single node installation.  |True |No |
 |kubernetes_ingress |Sets the installed Ingress Controller. Options are: traefik, nginx |traefik |No  |
 |kubernetes_storageclass |Sets the installed Storage Class. Options are: local, nfs |local |No  |
 |nfs_server_address  |The IP address of the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
 |nfs_server_path  |The path on the NFS server for the NFS StorageClass. |None |Yes, if *kubernetes_storageclass* var is set to **nfs** |
-|path_to_sourcefile |Path to the file containing extra k8s install vars| /tmp/k8s-extras.  |No  |
-|path_to_k8s_script |Path where the k8s install script will be downloaded to.  |/tmp/install-k8s.sh  |No |
-|path_to_manifests |Path to the directory the templated manifests will be created, **without trailing slash**. |/var/lib/rancher/k8s/server/manifests  |No |
 |vip_address  |The IP address kube-vip will advertise. |None |Yes, if *kubevip_install* var is set to **true** |
 |vip_interface  |The interface kube-vip will use to advertise the virtual IP. |ansible_facts.default_ipv4.interface  |No |
 
@@ -77,12 +77,11 @@ all:
 |Name |Description  |
 |---|---|
 |install  |Runs every tasks. Use this tag for a full installation |
+|prepare  |Runs tasks related to nodes preparations. |
 |k8s  |Runs every k8s related tasks (such as joining members to cluster)  |
 |main_master  |Runs every k8s tasks relatives to the installation of the first control plane node  |
 |other_master  |Runs every k8s tasks relatives to the installation of the supplementary control plane nodes |
 |worker |Runs every k8s tasks relatives to the installation of the worker nodes |
-|helm |Runs every tasks to install Helm on the control plane nodes  |
-|uninstall  |Runs the uninstall procedure (WIP) |
 
 ### Installation
 
@@ -103,30 +102,16 @@ ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </pat
 
 ```yaml
 # Add new control planes
-ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t other_servers <playbook_name>.yml
+ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t other_master <playbook_name>.yml
 ```
 
 ```yaml
 # Add new worker nodes
-ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t agents <playbook_name>.yml
+ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t worker <playbook_name>.yml
 ```
 
 #### In single node mode
 
 ```yaml
-ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t install --skip-tags agents, other_servers <playbook_name>.yml
-```
-
-### Uninstallation
-
-```yaml
-ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t uninstall <playbook_name>.yml
-```
-
-### Testing
-
-Create a symlink to the role in the tests/ directory:
-
-```bash
-ln -s ../.. tests/roles
+ansible-playbook -i /path/to/inventory --user <ansible_user> --private-key </path/to/ansible_user_private_key> -t install --skip-tags worker, other_master <playbook_name>.yml
 ```

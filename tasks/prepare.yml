@@ -7,6 +7,22 @@
     quiet: true
   when: kubevip_install
 
+- name: Check if nfs_server_address is set
+  ansible.builtin.assert:
+    that:
+      - nfs_server_address is defined
+    fail_msg: "nfs_server_address variable is not defined"
+    quiet: true
+  when: kubernetes_storageclass == 'nfs'
+
+- name: Check if nfs_server_path is set
+  ansible.builtin.assert:
+    that:
+      - nfs_server_path is defined
+    fail_msg: "nfs_server_path variable is not defined"
+    quiet: true
+  when: kubernetes_storageclass == 'nfs'
+
 - name: Populate service facts
   ansible.builtin.service_facts:
 
@@ -193,7 +209,7 @@
   when: ansible_os_family == "Debian"
 
 - name: Get Kubernetes repository GPG key
-  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
   when:
     - ansible_os_family == "Debian"
     - not stat_result.stat.exists
@@ -203,7 +219,7 @@
     - name: Add k8s.io repository (Debian)
       ansible.builtin.apt_repository:
         filename: kubernetes
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /"
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/ /"
         state: present
       when:
         - ansible_os_family == "Debian"
