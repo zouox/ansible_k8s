@@ -13,7 +13,8 @@ Supported architecture:
 
 This role automates the setup of Kubernetes with integration of essential components such as an ingress controller (Traefik or Nginx), a storage class (local or NFS), and a Virtual IP (kube-vip) for high availability and load balancing.
 
-> ⚠️ All issues must be created on the [project main repository](https://gitlab.com/zouox-projects/ansible/zouox.ansible_k8s).
+⚠️ All issues must be created on the [project main repository](https://gitlab.com/zouox-projects/ansible/zouox.ansible_k8s). \
+⚠️ The [Github repository](https://github.com/zouox/zouox.ansible_k8s) is a mirror for Ansible Galaxy. You can visite the official repository on [Gitlab](https://gitlab.com/zouox-projects/ansible/zouox.ansible_k8s) 
 
 ## Requirements
 
