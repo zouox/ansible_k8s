@@ -29,7 +29,7 @@
 - name: Pull Kubernetes images
   ansible.builtin.shell:
     executable: /bin/bash
-    cmd: kubeadm pull
+    cmd: kubeadm config images pull
   when: not kubelet_conf.stat.exists
 
 - name: Initialize Kubernetes cluster
