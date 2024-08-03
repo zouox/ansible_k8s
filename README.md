@@ -77,7 +77,7 @@ all:
 |Name |Description  |
 |---|---|
 |install  |Runs every tasks. Use this tag for a full installation |
-|prepare  |Runs tasks related to nodes preparations. |V
+|prepare  |Runs tasks related to nodes preparations. |
 |k8s  |Runs every k8s related tasks (such as joining members to cluster)  |
 |main_master  |Runs every k8s tasks relatives to the installation of the first control plane node  |
 |other_master  |Runs every k8s tasks relatives to the installation of the supplementary control plane nodes |
