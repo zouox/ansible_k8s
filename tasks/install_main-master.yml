@@ -65,11 +65,14 @@
 - name: Install CNI
   ansible.builtin.include_tasks:
     file: cni/{{ kubernetes_cni }}.yml
+  when: kubernetes_cni
 
 - name: Install ingress controller
   ansible.builtin.include_tasks:
     file: ingress/{{ kubernetes_ingress }}-controller.yml
+  when: kubernetes_ingress
 
 - name: Install storage class
   ansible.builtin.include_tasks:
     file: storage/{{ kubernetes_storageclass }}-class.yml
+  when: kubernetes_storageclass
