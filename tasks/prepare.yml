@@ -210,7 +210,17 @@
   when: ansible_os_family == "Debian"
 
 - name: Get Kubernetes repository GPG key
-  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key
+    dest: /tmp/kubernetes-apt-keyring.gpg
+    mode: '644'
+  when:
+    - ansible_os_family == "Debian"
+    - not stat_result.stat.exists
+
+- name: De-armor GPG key
+  ansible.builtin.command: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-apt-keyring.gpg
+  changed_when: false
   when:
     - ansible_os_family == "Debian"
     - not stat_result.stat.exists
@@ -277,7 +287,9 @@
         ('k8s_other_masters' in group_names)
 
 - name: Install Helm on master nodes
-  ansible.builtin.shell: set -o pipefail && PATH=/usr/local/bin:$PATH && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  ansible.builtin.shell:
+    cmd: set -o pipefail && PATH=/usr/local/bin:$PATH && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    executable: /bin/bash
   register: helm_output
   when: ('k8s_main_master' in group_names) or
         ('k8s_other_masters' in group_names)
