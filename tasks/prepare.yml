@@ -46,8 +46,8 @@
   loop: "{{ groups.all }}"
 
 - name: Disable swap
-  ansible.builtin.shell: |
-    swapoff -a
+  ansible.builtin.command: swapoff -a
+  changed_when: false
 
 - name: Disable swap in fstab
   ansible.builtin.replace:

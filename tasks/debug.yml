@@ -1,1 +1,21 @@
 ---
+- name: Get certificate key from main control plane
+  ansible.builtin.shell: kubeadm init phase upload-certs --upload-certs > /tmp/upload-certs
+  delegate_to: "{{ hostvars[groups['k8s_main_master'][0]]['ansible_facts']['hostname'] }}"
+  changed_when: false
+
+- name: Extract key from output
+  ansible.builtin.shell: grep -i -E "^[A-Za-z0-9]" /tmp/upload-certs
+  register: cert_key
+  delegate_to: "{{ hostvars[groups['k8s_main_master'][0]]['ansible_facts']['hostname'] }}"
+  changed_when: false
+
+- name: Get join command from main control plane
+  ansible.builtin.command: kubeadm token create --print-join-command
+  register: join_command
+  delegate_to: "{{ hostvars[groups['k8s_main_master'][0]]['ansible_facts']['hostname'] }}"
+  changed_when: false
+
+- name: Debug
+  ansible.builtin.debug:
+    msg: "{{ join_command.stdout }} {{ cert_key.stdout }}"

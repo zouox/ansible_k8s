@@ -8,7 +8,7 @@
       any_errors_fatal: true
   tags:
     - debug
-  when: "'k8s_main_master' in group_names"
+  when: "'k8s_other_masters' in group_names"
 
 - name: Prepare role execution
   ansible.builtin.include_tasks:
@@ -50,8 +50,7 @@
     - install
     - k8s
     - other_master
-  when: ('k8s_main_master' in group_names) or
-        ('k8s_other_masters' in group_names)
+  when: "'k8s_other_masters' in group_names"
 
 - name: Install k8s workers
   ansible.builtin.include_tasks:
@@ -66,5 +65,4 @@
     - install
     - k8s
     - worker
-  when: ('k8s_main_master' in group_names) or
-        ('k8s_workers' in group_names)
+  when: "'k8s_workers' in group_names"
