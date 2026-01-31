@@ -43,11 +43,11 @@
   ansible.builtin.lineinfile:
     path: /etc/hosts
     line: "{{ hostvars[item].ansible_host }}\t{{ item }}"
-  loop: "{{ groups.all }}" 
+  loop: "{{ groups.all }}"
 
 - name: Disable swap
-  ansible.builtin.shell: |
-    swapoff -a
+  ansible.builtin.command: swapoff -a
+  changed_when: false
 
 - name: Disable swap in fstab
   ansible.builtin.replace:
@@ -85,7 +85,7 @@
     value: "{{ item.value }}"
     state: present
     reload: true
-  loop: 
+  loop:
     - sysctl: net.ipv4.ip_forward
       value: 1
     - sysctl: net.bridge.bridge-nf-call-iptables
@@ -112,7 +112,7 @@
 
 - name: Update repository cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
   when:
     - ansible_os_family == "Debian"
 
@@ -152,7 +152,7 @@
   ansible.builtin.pip:
     name: kubernetes
   when: ansible_os_family == "RedHat"
-  
+
 - name: Install Kubernetes Python module system-wide
   ansible.builtin.package:
     name: python3-kubernetes
@@ -173,6 +173,7 @@
   ansible.builtin.get_url:
     url: https://download.docker.com/linux/debian/gpg
     dest: /etc/apt/keyrings/docker.asc
+    mode: '644'
   when:
     - ansible_os_family == "Debian"
 
@@ -203,13 +204,23 @@
         - ansible_os_family == "RedHat"
 
 - name: Check if Kubernetes repository GPG key exists
-  stat:
+  ansible.builtin.stat:
     path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
   register: stat_result
   when: ansible_os_family == "Debian"
 
 - name: Get Kubernetes repository GPG key
-  ansible.builtin.shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  ansible.builtin.get_url:
+    url: https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key
+    dest: /tmp/kubernetes-apt-keyring.gpg
+    mode: '644'
+  when:
+    - ansible_os_family == "Debian"
+    - not stat_result.stat.exists
+
+- name: De-armor GPG key
+  ansible.builtin.command: gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg /tmp/kubernetes-apt-keyring.gpg
+  changed_when: false
   when:
     - ansible_os_family == "Debian"
     - not stat_result.stat.exists
@@ -235,7 +246,7 @@
 
 - name: Update repository cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
   when:
     - ansible_os_family == "Debian"
 
@@ -245,16 +256,15 @@
     state: present
 
 - name: Create default config for containerd
-  ansible.builtin.shell: |
-    if cat /etc/containerd/config.toml | grep 'cri'; then
-      containerd config default > /etc/containerd/config.toml
-    fi
+  ansible.builtin.shell: containerd config default > /etc/containerd/config.toml
+  register: containerd_output
+  changed_when: containerd_output.rc != 0
 
 - name: Enable systemd Cgroup for containerd
-  ansible.builtin.shell: |
-    if cat /etc/containerd/config.toml | grep 'SystemdCgroup = false'; then
-      sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-    fi
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
 
 - name: Enable and start containerd unit
   ansible.builtin.service:
@@ -274,12 +284,16 @@
     name: kubectl
     state: present
   when: ('k8s_main_master' in group_names) or
-        ('k8s_other_masters' in group_names) 
+        ('k8s_other_masters' in group_names)
 
 - name: Install Helm on master nodes
-  ansible.builtin.shell: PATH=/usr/local/bin:$PATH && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  ansible.builtin.shell:
+    cmd: set -o pipefail && PATH=/usr/local/bin:$PATH && curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    executable: /bin/bash
+  register: helm_output
   when: ('k8s_main_master' in group_names) or
-        ('k8s_other_masters' in group_names) 
+        ('k8s_other_masters' in group_names)
+  changed_when: helm_output.rc != 0
 
 - name: Enable kubelet unit
   ansible.builtin.service:
@@ -296,12 +310,16 @@
   ansible.builtin.shell: |
       sudo apt-mark hold kubeadm
       sudo apt-mark hold kubelet
+  register: hold_output
   when: ansible_os_family == "Debian"
+  changed_when: hold_output.rc != 0
 
 - name: Prevent kubectl from being upgraded
   ansible.builtin.shell: |
       sudo apt-mark hold kubectl
+  register: hold_output
   when:
-  - ansible_os_family == "Debian"
-  - ('k8s_main_master' in group_names) or
-    ('k8s_other_masters' in group_names)
+    - ansible_os_family == "Debian"
+    - ('k8s_main_master' in group_names) or
+      ('k8s_other_masters' in group_names)
+  changed_when: hold_output.rc != 0

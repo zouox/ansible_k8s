@@ -1,7 +1,13 @@
 ---
-- name: Get latest kube-vip version
-  ansible.builtin.shell: curl -sL https://api.github.com/repos/kube-vip/kube-vip/releases | jq -r ".[0].name"
-  register: kubevip_version
+- name: Fetch kube-vip releases from GitHub API
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/kube-vip/kube-vip/releases
+  register: github_response
+  when: kubevip_install
+
+- name: Parse the latest kube-vip version
+  ansible.builtin.set_fact:
+    kubevip_version: "{{ github_response.json[0].name }}"
   when: kubevip_install
 
 - name: Import kube-vip manifest script template
@@ -14,11 +20,16 @@
   when: kubevip_install
 
 - name: Create kube-vip manifest
-  ansible.builtin.shell: /tmp/kubevip-manifest.sh
+  ansible.builtin.command: /tmp/kubevip-manifest.sh
+  register: create_output
   when: kubevip_install
+  changed_when: create_output.rc != 0
 
 - name: "[BUG FIX] Give kubevip pod super-admin perms to initiate"
-  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/admin.conf#path: /etc/kubernetes/super-admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: /etc/kubernetes/admin.conf'
+    replace: 'path: /etc/kubernetes/super-admin.conf'
   when: kubevip_install
 
 - name: Check if node has been initialized
@@ -30,28 +41,36 @@
   ansible.builtin.shell:
     executable: /bin/bash
     cmd: kubeadm config images pull
+  register: pull_output
   when: not kubelet_conf.stat.exists
+  changed_when: pull_output.rc != 0
 
 - name: Initialize Kubernetes cluster
   ansible.builtin.shell:
     executable: /bin/bash
     cmd: kubeadm init --pod-network-cidr={{ pod_network_cidr }} --control-plane-endpoint={{ vip_address | d(ansible_hostname) }}
+  register: init_output
   when: not kubelet_conf.stat.exists
+  changed_when: init_output.rc != 0
 
 - name: Create kube config directory for root user
   ansible.builtin.file:
     path: /root/.kube
     state: directory
+    mode: '600'
 
 - name: Ensure cluster access to root user
   ansible.builtin.copy:
     src: /etc/kubernetes/admin.conf
     dest: /root/.kube/config
-    mode: 0600
+    mode: '600'
     remote_src: true
 
 - name: "[BUG FIX] Revert giving kubevip pod super-admin perms to initiate"
-  ansible.builtin.shell: "sed -i 's#path: /etc/kubernetes/super-admin.conf#path: /etc/kubernetes/admin.conf#' /etc/kubernetes/manifests/kube-vip.yaml"
+  ansible.builtin.replace:
+    path: /etc/kubernetes/manifests/kube-vip.yaml
+    regexp: 'path: /etc/kubernetes/super-admin.conf'
+    replace: 'path: /etc/kubernetes/admin.conf'
   when: kubevip_install
 
 - name: Wait for kube-vip pod to be up again

@@ -17,9 +17,12 @@
     mode: '0664'
 
 - name: Replace default Calico network CIDR
-  ansible.builtin.shell: sed -i 's@192.168.0.0/16@{{ pod_network_cidr }}@' /tmp/calico.yaml
+  ansible.builtin.replace:
+    path: /tmp/calico.yaml
+    regexp: '192.168.0.0/16'
+    replace: '{{ pod_network_cidr }}'
 
-- name: Apply Tigera Calico Operator manifest
+- name: Apply Calico manifest
   kubernetes.core.k8s:
     state: present
     src: /tmp/calico.yaml
